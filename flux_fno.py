@@ -48,17 +48,22 @@ def rk2_step(model, params, u, dt, dx):
 
 
 def consistency_loss(model, params, pde, u, n_in=C.STENCIL_P + C.STENCIL_Q + 1):
-    "L_consi = ||G(U, ..., U) - F(U)||² (éq. 3)."
+    "Résidu de L_consi = ||G(U, ..., U) - F(U)||² (éq. 3), par point."
     G = model.apply(params, jnp.repeat(u[..., None], n_in, axis=-1))[..., 0]
-    return jnp.mean((G - physical_flux(pde, u)) ** 2)
+    return (G - physical_flux(pde, u)) ** 2
 
 
 def loss(model, params, pde, u_n, u_np1, dt, lam=C.LAMBDA_CONSI, rk2=False):
     """L = L_tm + λ L_consi pour un lot de pas consécutifs (u_n, u_{n+1}).
-    L_tm = ||U^{n+1} - U^n + Δt/Δx[G(U^l) - G(U^r)]||² (moyenne au lieu de
-    somme : simple facteur d'échelle)."""
+    L_tm = ||U^{n+1} - U^n + Δt/Δx[G(U^l) - G(U^r)]||².
+
+    Comme dans le papier, les normes sont des SOMMES (sur le lot et l'espace),
+    pas des moyennes. Ce n'est pas un simple facteur d'échelle : le weight
+    decay façon torch.Adam ajoute 1e-3·θ au gradient, et avec une perte
+    moyennée (~1e-4) ce terme domine et empêche tout apprentissage.
+    Les valeurs renvoyées pour le suivi sont, elles, des moyennes par point."""
     dx = 1.0 / u_n.shape[-1]
     step = rk2_step if rk2 else euler_step
-    l_tm = jnp.mean((u_np1 - step(model, params, u_n, dt, dx)) ** 2)
-    l_c = consistency_loss(model, params, pde, u_n)
-    return l_tm + lam * l_c, (l_tm, l_c)
+    r_tm = (u_np1 - step(model, params, u_n, dt, dx)) ** 2
+    r_c = consistency_loss(model, params, pde, u_n)
+    return jnp.sum(r_tm) + lam * jnp.sum(r_c), (jnp.mean(r_tm), jnp.mean(r_c))

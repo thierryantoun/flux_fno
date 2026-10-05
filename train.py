@@ -60,8 +60,8 @@ def make_loss(pde, name, model, dt, lam, rk2):
         return lambda p, x, y: FF.loss(model, p, pde, x, y, dt, lam, rk2)
 
     def loss(p, x, y):                        # FNO classique : régression directe
-        l = jnp.mean((model.apply(p, x[..., None])[..., 0] - y) ** 2)
-        return l, (l, jnp.zeros(()))
+        r = (model.apply(p, x[..., None])[..., 0] - y) ** 2
+        return jnp.sum(r), (jnp.mean(r), jnp.zeros(()))   # somme : cf. flux_fno.loss
     return loss
 
 

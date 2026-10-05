@@ -53,9 +53,11 @@ GPU (`pip install -U "jax[cuda12]"`).
   avance d'une maille par pas.
 - **GRF** : covariance exp(-((x-y)/0.1)²), avec une distance périodique pour que
   la CI soit continue au bord.
-- **L_tm** : moyenne au lieu de somme (simple facteur d'échelle). Pour Burgers
-  (Δt/Δx = 0.01), L_tm est numériquement bien plus petite que λ·L_consi, comme
-  dans la formulation du papier.
+- **Normes = sommes** (sur le lot et l'espace), comme dans le papier. Avec des
+  moyennes, le weight decay (1e-3·θ ajouté au gradient) domine une perte de
+  l'ordre de 1e-4 et le modèle n'apprend rien. Les valeurs `tm` et `consi`
+  affichées pendant l'entraînement sont des moyennes par point. Repère pour
+  Burgers : un modèle sans flux (G = 0) donne tm ≈ 5.8e-7.
 - **RK2** : RK2 TVD de Gottlieb-Shu (α, β = ½).
 - **Weight decay** : sous la forme de `torch.optim.Adam` (L2 ajouté au gradient),
   et non AdamW. StepLR est compté en epochs.
